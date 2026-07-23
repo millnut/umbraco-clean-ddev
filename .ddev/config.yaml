@@ -1,0 +1,28 @@
+name: umbraco-clean
+type: generic
+docroot: ""
+
+# Based on: https://docs.umbraco.com/umbraco-cms/fundamentals/setup/install/running-umbraco-on-docker-locally
+webserver_type: generic
+
+# SQL Server runs as a separate service in docker-compose; DDEV's default MariaDB is unused
+omit_containers: [db]
+
+# No PHP packages needed - the web-build Dockerfile handles all dependencies
+webimage_extra_packages: []
+
+# Kestrel listens on 8080; map it through DDEV's router on standard ports
+web_extra_exposed_ports:
+    - name: umbraco
+      container_port: 8080
+      http_port: 80
+      https_port: 443
+
+# Prevent DDEV from generating php.ini / nginx.conf that conflict with our custom container
+disable_settings_management: true
+upload_dirs: []
+
+use_dns_when_possible: true
+composer_version: ""
+nodejs_version: ""
+disable_upload_dirs_warning: true

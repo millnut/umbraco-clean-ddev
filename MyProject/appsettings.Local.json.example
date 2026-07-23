@@ -1,0 +1,35 @@
+{
+  "$schema": "appsettings-schema.json",
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information"
+    },
+    "WriteTo": [
+      {
+        "Name": "Async",
+        "Args": {
+          "configure": [
+            {
+              "Name": "Console"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "ConnectionStrings": {
+    "umbracoDbDSN": "Server=sqlserver;Database=UmbracoDb;User Id=sa;Password=UmbracoD3v!;TrustServerCertificate=True",
+    "umbracoDbDSN_ProviderName": "Microsoft.Data.SqlClient"
+  },
+  "Umbraco": {
+    "CMS": {
+      "Unattended": {
+        "InstallUnattended": true,
+        "UnattendedUserName": "Administrator",
+        "UnattendedUserEmail": "admin@example.com",
+        "UnattendedUserPassword": "1234567890",
+        "UnattendedTelemetryLevel": "Minimal"
+      }
+    }
+  }
+}

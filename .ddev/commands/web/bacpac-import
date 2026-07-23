@@ -1,0 +1,45 @@
+#!/bin/bash
+#ddev-silent-no-warn
+
+## Description: Import a .bacpac file into SQL Server
+## Usage: bacpac-import <filename>
+## Example: "ddev bacpac-import UmbracoDb.bacpac"
+
+if [ -z "$1" ]; then
+    echo "Usage: ddev bacpac-import <filename>"
+    echo "Place the .bacpac file in your project root."
+    exit 1
+fi
+
+# /var/www/html is the host-mounted project root
+SOURCE="/var/www/html/${1}"
+
+if [ ! -f "$SOURCE" ]; then
+    echo "File not found: ${1}"
+    echo "Make sure the file is in your project root directory."
+    exit 1
+fi
+
+# sqlpackage Import requires an empty/nonexistent target database
+# SET SINGLE_USER kills active connections (Kestrel holds one) so DROP can proceed
+echo "Dropping existing database (if any)..."
+sqlcmd -S sqlserver -U sa -P 'UmbracoD3v!' -C -Q "
+IF DB_ID('UmbracoDb') IS NOT NULL
+BEGIN
+    ALTER DATABASE UmbracoDb SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE UmbracoDb;
+END"
+
+echo "Importing ${1}..."
+if sqlpackage /Action:Import \
+    /TargetServerName:sqlserver \
+    /TargetDatabaseName:UmbracoDb \
+    /TargetUser:sa \
+    /TargetPassword:"UmbracoD3v!" \
+    /TargetTrustServerCertificate:True \
+    /SourceFile:"${SOURCE}"; then
+    echo "Imported ${1} successfully."
+else
+    echo "Import failed."
+    exit 1
+fi

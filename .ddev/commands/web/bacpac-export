@@ -1,0 +1,24 @@
+#!/bin/bash
+#ddev-silent-no-warn
+
+## Description: Export SQL Server database to a .bacpac file
+## Usage: bacpac-export [filename]
+## Example: "ddev bacpac-export" or "ddev bacpac-export mybackup.bacpac"
+
+FILENAME="${1:-UmbracoDb.bacpac}"
+# Write to /var/www/html so the file appears in the host-mounted project root
+OUTPUT="/var/www/html/${FILENAME}"
+
+echo "Exporting database to ${FILENAME}..."
+if sqlpackage /Action:Export \
+    /SourceServerName:sqlserver \
+    /SourceDatabaseName:UmbracoDb \
+    /SourceUser:sa \
+    /SourcePassword:"UmbracoD3v!" \
+    /SourceTrustServerCertificate:True \
+    /TargetFile:"${OUTPUT}"; then
+    echo "Exported to ${FILENAME}"
+else
+    echo "Export failed."
+    exit 1
+fi
