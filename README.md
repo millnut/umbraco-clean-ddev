@@ -19,25 +19,33 @@ Default admin credentials (configured in `appsettings.Local.json`):
 - Email: `admin@example.com`
 - Password: `1234567890`
 
+On that first boot Umbraco logs a `Cannot open database "UmbracoDb"` warning with error number 4060. It appears because the database does not exist until the unattended install creates it, and it does not recur.
+
 ## How It Works
 
-DDEV's default PHP/nginx web container is replaced with a custom .NET SDK container (see `.ddev/web-build/Dockerfile`). The `docker-compose.umbraco.yaml` override wires up:
+The project uses DDEV's `generic` type, so DDEV starts no nginx or PHP-FPM of its own. The stock `ddev-webserver` image is kept and extended: `.ddev/web-build/Dockerfile` adds the .NET SDK and SQL Server tooling on top of it rather than replacing it.
 
-- **web** — runs `dotnet watch` in the `MyProject/` directory, serving Kestrel on port 8080
-- **sqlserver** — Azure SQL Edge (SQL Server wire-compatible, runs on Apple Silicon)
-- **adminer** — web-based database UI
+| Service | Notes |
+|---------|-------|
+| `web` | The stock DDEV web container plus .NET. `web_extra_daemons` in `config.yaml` runs `dotnet watch` under the container's supervisord, so Kestrel gets restart-on-failure for free. Kestrel binds port 80 directly, which is where the DDEV router sends this project's traffic. |
+| `sqlserver` | Azure SQL Edge, used because SQL Server proper publishes no ARM64 image. It speaks the same TDS protocol, so Umbraco cannot tell the difference. |
+| `adminer` | Web-based database UI. |
 
-DDEV's router handles TLS termination and proxies HTTPS traffic to Kestrel.
+DDEV's router handles TLS termination and forwards plain HTTP to Kestrel, which is why `ASPNETCORE_FORWARDEDHEADERS_ENABLED` is set.
 
-## Local Configuration
+Only `sqlserver` and `adminer` are defined in `docker-compose.umbraco.yaml`. The web container is configured entirely through `config.yaml`, so DDEV keeps ownership of its lifecycle.
 
-Umbraco's configuration is layered via the standard ASP.NET Core model. This line in `Program.cs` loads a developer-local settings file that is git-ignored:
+## Configuration
+
+Database credentials live in `.ddev/.env`, which DDEV feeds to both docker-compose interpolation and every container's environment. One definition there covers the `sqlserver` service, Adminer, the `bacpac-*` commands, and Umbraco's connection string. The file is committed on purpose: it holds a fixed local dev credential rather than a secret, so a fresh clone works without extra setup.
+
+`appsettings.Local.json` is git-ignored and exists for per-developer overrides such as logging levels. `Program.cs` registers it last:
 
 ```csharp
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 ```
 
-This allows each developer to override connection strings, logging levels, or any other settings without touching committed files. The `optional: true` means the app still starts if the file is missing (e.g., in CI/production). The example template is at `MyProject/appsettings.Local.json.example`.
+Because that line runs after `CreateBuilder` has already added the environment variable provider, this file wins over the environment. Do not add a `ConnectionStrings` block to it: doing so would quietly override the value from `.ddev/.env`. The example template is at `MyProject/appsettings.Local.json.example`.
 
 ## Commands
 
@@ -47,7 +55,7 @@ This allows each developer to override connection strings, logging levels, or an
 | `ddev dotnet <args>` | Run dotnet CLI in the project directory |
 | `ddev bacpac-export [filename]` | Export database to a `.bacpac` file |
 | `ddev bacpac-import <filename>` | Drop and reimport database from a `.bacpac` file |
-| `ddev adminer` | Open Adminer in browser |
+| `ddev adminer` | Open Adminer in browser (installed by the add-on, not committed) |
 
 ## Database Backup / Restore
 
@@ -68,14 +76,14 @@ Place the `.bacpac` file in the project root before importing.
 
 ```
 .ddev/
-├── config.yaml                    # DDEV project config (generic type, no PHP)
-├── docker-compose.umbraco.yaml    # Service definitions (web, sqlserver, adminer)
+├── .env                           # SA password and connection string
+├── config.yaml                    # Project config, web container, Kestrel daemon
+├── docker-compose.umbraco.yaml    # sqlserver and adminer services
 ├── docker-compose.adminer.yaml    # Adminer add-on (modified, see below)
 ├── web-build/
-│   └── Dockerfile                 # Custom .NET SDK container
+│   └── Dockerfile                 # Adds .NET SDK and mssql tools to ddev-webserver
 └── commands/
     ├── host/
-    │   ├── adminer                # Launch Adminer in browser
     │   └── setup                  # First-time dev setup
     └── web/
         ├── bacpac-export          # Database export
@@ -83,6 +91,10 @@ Place the `.bacpac` file in the project root before importing.
         └── dotnet                 # dotnet CLI passthrough
 ```
 
+The `adminer` host command is not listed above because it ships with the `ddev/ddev-adminer` add-on and is excluded by `.gitignore`. It appears once `ddev setup` has installed the add-on.
+
 ### Adminer add-on override
 
 `docker-compose.adminer.yaml` is generated by the `ddev/ddev-adminer` add-on but has been committed with one modification: the default `depends_on: [db]` is removed because this project omits the DDEV `db` container (SQL Server runs as its own service). The connection defaults are set in `docker-compose.umbraco.yaml` instead, pointing Adminer at the `sqlserver` service.
+
+Because the committed copy carries no `#ddev-generated` marker, DDEV treats it as yours and will not overwrite it.
