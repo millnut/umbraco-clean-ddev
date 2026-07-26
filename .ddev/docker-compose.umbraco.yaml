@@ -1,58 +1,43 @@
 #ddev-silent-no-warn
 # Based on: https://docs.umbraco.com/umbraco-cms/fundamentals/setup/install/running-umbraco-on-docker-locally
+#
+# Only the services DDEV doesn't provide, plus the ordering dependency on them.
+# The web container is configured in config.yaml, so that DDEV owns its lifecycle
+# rather than a compose override.
 
 services:
   web:
-    working_dir: /var/www/html/MyProject
-    command:
-      - bash
-      - -c
-      - |
-        echo "=== Container Starting ==="
-        pwd
-        ls -la
-        echo "=== Restoring packages ==="
-        dotnet restore
-        echo "=== Starting application ==="
-        exec dotnet watch run --non-interactive --no-launch-profile
     depends_on:
       sqlserver:
         condition: service_healthy
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      # Must bind 0.0.0.0 — localhost won't be reachable from the DDEV router container
-      - ASPNETCORE_URLS=http://0.0.0.0:8080
-      # DDEV's router terminates TLS and forwards via HTTP; Kestrel needs to trust X-Forwarded-* headers
-      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
-      - DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
-      - DOTNET_CLI_TELEMETRY_OPTOUT=1
-      - DOTNET_RUNNING_IN_CONTAINER=true
-      # NuGet and dotnet CLI write to $HOME; the default user may not own /home, so use /tmp
-      - HOME=/tmp
-    volumes:
-      - "${DDEV_APPROOT}:/var/www/html:cached"
 
-  # Azure SQL Edge instead of SQL Server proper — same TDS protocol, but runs on ARM64/Apple Silicon
+  # Azure SQL Edge rather than SQL Server proper, which has no ARM64/Apple Silicon
+  # image; the TDS protocol is the same, so Umbraco cannot tell the difference
   sqlserver:
     container_name: ddev-${DDEV_SITENAME}-sqlserver
     image: mcr.microsoft.com/azure-sql-edge:latest
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=UmbracoD3v!
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
     ports:
       - "1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
     healthcheck:
-      # python3 socket check because Azure SQL Edge doesn't ship sqlcmd
+      # A raw socket check, because Azure SQL Edge ships no sqlcmd to query with.
+      # It only proves the port is open, which happens slightly before the server
+      # will accept logins. If boot-time login timeouts ever appear, grep
+      # /var/opt/mssql/log/errorlog for 'ready for client connections' instead.
       test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.create_connection(('localhost',1433),2); s.close()\""]
       interval: 10s
       timeout: 5s
       retries: 10
-      # SQL Edge takes ~20s to initialise on first run
+      # First run initialises system databases, which takes ~20s; without the
+      # grace period the retries would exhaust before that finishes
       start_period: 30s
     labels:
       com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
 
   adminer:
     depends_on:
@@ -62,7 +47,7 @@ services:
       - ADMINER_DEFAULT_SERVER=sqlserver
       - ADMINER_DEFAULT_DB=UmbracoDb
       - ADMINER_DEFAULT_USERNAME=sa
-      - ADMINER_DEFAULT_PASSWORD=UmbracoD3v!
+      - ADMINER_DEFAULT_PASSWORD=${MSSQL_SA_PASSWORD}
 
 volumes:
   sqlserver-data:

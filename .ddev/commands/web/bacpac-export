@@ -14,7 +14,7 @@ if sqlpackage /Action:Export \
     /SourceServerName:sqlserver \
     /SourceDatabaseName:UmbracoDb \
     /SourceUser:sa \
-    /SourcePassword:"UmbracoD3v!" \
+    /SourcePassword:"${MSSQL_SA_PASSWORD}" \
     /SourceTrustServerCertificate:True \
     /TargetFile:"${OUTPUT}"; then
     echo "Exported to ${FILENAME}"

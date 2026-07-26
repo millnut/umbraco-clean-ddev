@@ -23,7 +23,7 @@ fi
 # sqlpackage Import requires an empty/nonexistent target database
 # SET SINGLE_USER kills active connections (Kestrel holds one) so DROP can proceed
 echo "Dropping existing database (if any)..."
-sqlcmd -S sqlserver -U sa -P 'UmbracoD3v!' -C -Q "
+sqlcmd -S sqlserver -U sa -P "${MSSQL_SA_PASSWORD}" -C -Q "
 IF DB_ID('UmbracoDb') IS NOT NULL
 BEGIN
     ALTER DATABASE UmbracoDb SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
@@ -35,7 +35,7 @@ if sqlpackage /Action:Import \
     /TargetServerName:sqlserver \
     /TargetDatabaseName:UmbracoDb \
     /TargetUser:sa \
-    /TargetPassword:"UmbracoD3v!" \
+    /TargetPassword:"${MSSQL_SA_PASSWORD}" \
     /TargetTrustServerCertificate:True \
     /SourceFile:"${SOURCE}"; then
     echo "Imported ${1} successfully."
