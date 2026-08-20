@@ -10,6 +10,8 @@ services:
     depends_on:
       sqlserver:
         condition: service_healthy
+    environment:
+      - Umbraco__CMS__WebRouting__UmbracoApplicationUrl=${DDEV_PRIMARY_URL}
 
   # Azure SQL Edge rather than SQL Server proper, which has no ARM64/Apple Silicon
   # image; the TDS protocol is the same, so Umbraco cannot tell the difference
