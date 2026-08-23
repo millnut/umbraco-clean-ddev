@@ -1,6 +1,7 @@
 name: umbraco-clean
 type: generic
 docroot: ""
+performance_mode: none
 
 # Based on: https://docs.umbraco.com/umbraco-cms/fundamentals/setup/install/running-umbraco-on-docker-locally
 webserver_type: generic
@@ -9,7 +10,7 @@ webserver_type: generic
 omit_containers: [db]
 
 # webimage_extra_packages is deliberately absent. DDEV injects it ahead of
-# .ddev/web-build/Dockerfile, so it cannot see the Microsoft apt feed that
+# .ddev/web-build/Dockerfile.dotnet, so it cannot see the Microsoft apt feed that
 # Dockerfile registers.
 
 # generic webserver_type emits no default web router, so without this block the
@@ -46,6 +47,13 @@ web_environment:
 # would only be dead files here
 disable_settings_management: true
 upload_dirs: []
+
+# pre-start rather than post-start: Kestrel starts with the container, so a later
+# hook would write this file after the app had already read it. That phase forces
+# exec-host, since no container exists yet.
+hooks:
+    pre-start:
+        - exec-host: "bash -c '[ -f MyProject/appsettings.Local.json ] || cp MyProject/appsettings.Local.json.example MyProject/appsettings.Local.json'"
 
 use_dns_when_possible: true
 composer_version: ""

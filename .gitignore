@@ -14,7 +14,7 @@ appsettings.Local.json
 .ddev/commands/*
 !.ddev/commands/host/
 .ddev/commands/host/*
-!.ddev/commands/host/setup
+!.ddev/commands/host/adminer
 !.ddev/commands/web/
 .ddev/commands/web/*
 !.ddev/commands/web/dotnet

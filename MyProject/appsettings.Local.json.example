@@ -17,10 +17,6 @@
       }
     ]
   },
-  "ConnectionStrings": {
-    "umbracoDbDSN": "Server=sqlserver;Database=UmbracoDb;User Id=sa;Password=UmbracoD3v!;TrustServerCertificate=True",
-    "umbracoDbDSN_ProviderName": "Microsoft.Data.SqlClient"
-  },
   "Umbraco": {
     "CMS": {
       "Unattended": {
