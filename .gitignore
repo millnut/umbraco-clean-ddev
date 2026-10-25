@@ -22,3 +22,4 @@ appsettings.Local.json
 !.ddev/commands/web/bacpac-import
 
 *.bacpac
+node_modules
